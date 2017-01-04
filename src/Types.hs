@@ -1,21 +1,25 @@
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Types where
 
 import Prelude hiding (LT,GT)
 import Data.Map (Map)
-import Control.Monad.State
+import GHC.TypeLits
+-- import Control.Monad.State
 
-data Actor a = Actor
+data Actor c p a = Actor
   { name :: String
-  , transitions  :: Transitions a
-  , priorities   :: Maybe (Priorities a)
-  , globalState  :: GlobalVars a
+  , transitions  :: Transitions c p a
+  , priorities   :: Maybe (Priorities c p a)
+  , globalState  :: GlobalVar a
   , currentState :: StateFSM
   , consumed :: ConsumedTokens
   , produced :: ProducedTokens
   }
 
-instance Show (Actor a) where
+instance Show (Actor c p a) where
   show (Actor name _ _ globVars curState consumed produced) =
     "name: " ++ name ++ "\n" ++ show globVars ++ "\nFSM state: " ++ show curState
     ++ "\n" ++ show consumed ++ "\n" ++ show produced
@@ -36,13 +40,13 @@ data Guard a where
   GuardB :: Bool -> Guard Bool
   LT :: Val a -> Val a -> Guard Bool
 
-type GlobalVars a = Map Var (Val a)
+type GlobalVar s = Map Var (Val s)
 type ConsumedTokens = Map Port Int
 type ProducedTokens = Map Port Int
-type Priority a = (Transition a, Transition a)
-type Priorities a = [Priority a]
+type Priority c p a = (Transition c p a, Transition c p a)
+type Priorities c p a = [Priority c p a]
 
-type Action a = State (Transition a) a
+-- type Action a = State (Transition a) a
 
 data ActionAST a where
   Action :: String -> Guard Bool -> [(Port,Int)] -> [(Port,Int)] -> ActionAST a
@@ -52,7 +56,9 @@ fire = id
 
 ((<=)) = LT
 
-when :: (GlobalVars a -> ConsumedTokens -> Bool) -> Guard Bool
+transition = Action
+
+when :: (GlobalVar s -> ConsumedTokens -> Bool) -> Guard Bool
 when fun = GuardB True
 
 whenever :: Guard Bool
@@ -64,25 +70,28 @@ takeT = id
 putT :: [(Port,Int)] -> [(Port,Int)]
 putT = id
 
-initTransition name fsmId =
-  Transition
-  { label = name
-  , guard = Nothing
-  , from = fsmId
-  , to   = fsmId + 1
-  , modified = id
-  , consumes = Map.empty
-  , produced = Map.empty
-  }
+modify :: GlobalVar s -> GlobalVar s
+modify = id
 
-data Transition a = Transition
+-- initTransition name fsmId =
+--   Transition
+--   { label = name
+--   , guard = Nothing
+--   , from = fsmId
+--   , to   = fsmId + 1
+--   , modified = id
+--   , consumes = Map.empty
+--   , produced = Map.empty
+--   }
+
+data Transition (c::Nat) (p::Nat) s = Transition
   { label :: String
   , guard :: Maybe (Guard Bool)
   , from :: StateFSM
   , to :: StateFSM
-  , modifies :: (GlobalVars a) -> (GlobalVars a)
+  , modifies :: (GlobalVar s) -> (GlobalVar s)
   , consumes :: ConsumedTokens
   , produces :: ProducedTokens
   }
 
-type Transitions a = [Transition a]
+type Transitions c p a = [Transition c p a]

@@ -1,19 +1,24 @@
+{-# LANGUAGE DataKinds #-}
 module Lib where
 
 import Prelude hiding (LT,GT,(<=))
 import qualified Data.Map as Map
 import Data.Maybe
 import Types
-import Control.Monad.State
+-- import Control.Monad.State
 
-makeTransition :: String -> Int -> Query a -> (QueryData -> b) -> Transition a
-makeTransition name fsmId q f = f $ execState q (initTransition name fsmId)
+-- makeTransition :: String -> Int -> Query a -> (QueryData -> b) -> Transition a
+-- makeTransition name fsmId q f = f $ execState q (initTransition name fsmId)
 
-myTrans = do
-  fire "myTrans"
-  peek [("in1",5)]
-  when (\globalState inTokens -> Map.null globalState)
-  put [("out1", (\globalVars inTokens -> [1,2,3]))]
+myTrans :: Transition 5 10 s
+myTrans = -- (transition "action1")
+          -- (when (LT (ValI 4) (ValI 5)))
+          transition
+          "tran1"
+          (when (\state tokens -> undefined))
+          -- (put (\st vec -> undefined))
+          []
+          []
   
 
 -- myTrans :: ActionAST a
@@ -55,7 +60,7 @@ type ConsumeRate = (String,Int)
 takeTokens :: String -> Int -> ConsumeRate
 takeTokens s i = (s,i)
 
-tran1 :: Transition a
+tran1 :: Transition c p a
 tran1 = Transition
   { label = "tran1"
   , guard = Just (LT (ValI 4) (ValI 5))
@@ -66,7 +71,7 @@ tran1 = Transition
   , produces = Map.fromList [("out1",0)]
   }
 
-tran2 :: Transition a
+tran2 :: Transition c p a
 tran2 = Transition
   { label = "tran2"
   , guard = Just (LT (ValI 4) (ValI 5))
@@ -77,7 +82,7 @@ tran2 = Transition
   , produces = Map.fromList [("out1",0)]
   }
 
-actor :: Actor a
+actor :: Actor c p a
 actor = Actor
   { name = "myActor"
   , transitions  = [tran1,tran2]
@@ -88,7 +93,7 @@ actor = Actor
   , produced     = Map.fromList [("out1",0)]
   }
 
-runActor :: Actor a -> Actor a
+runActor :: Actor c p a -> Actor c p a
 runActor actor =
   if isNothing (pickTransition actor)
   then actor 
@@ -96,12 +101,12 @@ runActor actor =
     let trans = fromJust (pickTransition actor)
     in runActor (fireTransition actor trans)
 
-fireTransition :: Actor a -> Transition a -> Actor a
+fireTransition :: Actor c p a -> Transition c p a -> Actor c p a
 fireTransition actor transition =
   actor { globalState = modifies transition (globalState actor)
         , currentState = to transition }
 
-pickTransition :: Actor a -> Maybe (Transition a)
+pickTransition :: Actor c p a -> Maybe (Transition c p a)
 pickTransition actor = go (transitions actor)
   where
     go [] = Nothing
@@ -110,13 +115,13 @@ pickTransition actor = go (transitions actor)
       then Just x
       else go xs
 
-canFire :: Actor a -> Transition a -> Bool
+canFire :: Actor c p a -> Transition c p a -> Bool
 canFire actor transition =
   from transition == currentState actor
   && not (or (map (canFire actor) (higherPriority transition actor)))
   -- add checks on guards
 
-higherPriority :: Transition a -> Actor a -> [Transition a]
+higherPriority :: Transition c p a -> Actor c p a -> [Transition c p a]
 higherPriority transition actor =
   foldr (\(higher,lower) xs ->
             if label transition == label lower
