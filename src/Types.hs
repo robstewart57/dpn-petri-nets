@@ -1,7 +1,5 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Types where
 
 import Prelude hiding (LT,GT)
@@ -9,17 +7,17 @@ import Data.Map (Map)
 import GHC.TypeLits
 -- import Control.Monad.State
 
-data Actor c p a = Actor
+data Actor a = Actor
   { name :: String
-  , transitions  :: Transitions c p a
-  , priorities   :: Maybe (Priorities c p a)
+  , transitions  :: Transitions a
+  , priorities   :: Maybe (Priorities a)
   , globalState  :: GlobalVar a
   , currentState :: StateFSM
   , consumed :: ConsumedTokens
   , produced :: ProducedTokens
   }
 
-instance Show (Actor c p a) where
+instance Show (Actor a) where
   show (Actor name _ _ globVars curState consumed produced) =
     "name: " ++ name ++ "\n" ++ show globVars ++ "\nFSM state: " ++ show curState
     ++ "\n" ++ show consumed ++ "\n" ++ show produced
@@ -43,8 +41,8 @@ data Guard a where
 type GlobalVar s = Map Var (Val s)
 type ConsumedTokens = Map Port Int
 type ProducedTokens = Map Port Int
-type Priority c p a = (Transition c p a, Transition c p a)
-type Priorities c p a = [Priority c p a]
+type Priority a = (Transition a, Transition a)
+type Priorities a = [Priority a]
 
 -- type Action a = State (Transition a) a
 
@@ -84,7 +82,7 @@ modify = id
 --   , produced = Map.empty
 --   }
 
-data Transition (c::Nat) (p::Nat) s = Transition
+data Transition s = Transition
   { label :: String
   , guard :: Maybe (Guard Bool)
   , from :: StateFSM
@@ -94,4 +92,4 @@ data Transition (c::Nat) (p::Nat) s = Transition
   , produces :: ProducedTokens
   }
 
-type Transitions c p a = [Transition c p a]
+type Transitions a = [Transition a]

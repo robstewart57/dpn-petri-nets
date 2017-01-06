@@ -10,15 +10,15 @@ import Types
 -- makeTransition :: String -> Int -> Query a -> (QueryData -> b) -> Transition a
 -- makeTransition name fsmId q f = f $ execState q (initTransition name fsmId)
 
-myTrans :: Transition 5 10 s
-myTrans = -- (transition "action1")
-          -- (when (LT (ValI 4) (ValI 5)))
-          transition
-          "tran1"
-          (when (\state tokens -> undefined))
-          -- (put (\st vec -> undefined))
-          []
-          []
+-- myTrans :: Transition 5 10 s
+-- myTrans = -- (transition "action1")
+--           -- (when (LT (ValI 4) (ValI 5)))
+--           transition
+--           "tran1"
+--           (when (\state tokens -> undefined))
+--           -- (put (\st vec -> undefined))
+--           []
+--           []
   
 
 -- myTrans :: ActionAST a
