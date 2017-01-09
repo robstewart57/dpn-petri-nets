@@ -6,8 +6,8 @@ import qualified Data.Set as S
 import PetriNets
 
 
-h2 = Place 0 2
-o2 = Place 1 1
+h2 = (Place 0,2)
+o2 = (Place 1,2)
 h2o = Transition 0
 
 arc1 = ArcPT 0 h2o 2
