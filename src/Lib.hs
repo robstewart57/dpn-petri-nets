@@ -60,7 +60,7 @@ type ConsumeRate = (String,Int)
 takeTokens :: String -> Int -> ConsumeRate
 takeTokens s i = (s,i)
 
-tran1 :: Transition c p a
+tran1 :: Transition a
 tran1 = Transition
   { label = "tran1"
   , guard = Just (LT (ValI 4) (ValI 5))
@@ -71,7 +71,7 @@ tran1 = Transition
   , produces = Map.fromList [("out1",0)]
   }
 
-tran2 :: Transition c p a
+tran2 :: Transition a
 tran2 = Transition
   { label = "tran2"
   , guard = Just (LT (ValI 4) (ValI 5))
@@ -82,7 +82,7 @@ tran2 = Transition
   , produces = Map.fromList [("out1",0)]
   }
 
-actor :: Actor c p a
+actor :: Actor a
 actor = Actor
   { name = "myActor"
   , transitions  = [tran1,tran2]
@@ -93,7 +93,7 @@ actor = Actor
   , produced     = Map.fromList [("out1",0)]
   }
 
-runActor :: Actor c p a -> Actor c p a
+runActor :: Actor a -> Actor a
 runActor actor =
   if isNothing (pickTransition actor)
   then actor 
@@ -101,12 +101,12 @@ runActor actor =
     let trans = fromJust (pickTransition actor)
     in runActor (fireTransition actor trans)
 
-fireTransition :: Actor c p a -> Transition c p a -> Actor c p a
+fireTransition :: Actor a -> Transition a -> Actor a
 fireTransition actor transition =
   actor { globalState = modifies transition (globalState actor)
         , currentState = to transition }
 
-pickTransition :: Actor c p a -> Maybe (Transition c p a)
+pickTransition :: Actor a -> Maybe (Transition a)
 pickTransition actor = go (transitions actor)
   where
     go [] = Nothing
@@ -115,13 +115,13 @@ pickTransition actor = go (transitions actor)
       then Just x
       else go xs
 
-canFire :: Actor c p a -> Transition c p a -> Bool
+canFire :: Actor a -> Transition a -> Bool
 canFire actor transition =
   from transition == currentState actor
   && not (or (map (canFire actor) (higherPriority transition actor)))
   -- add checks on guards
 
-higherPriority :: Transition c p a -> Actor c p a -> [Transition c p a]
+higherPriority :: Transition a -> Actor a -> [Transition a]
 higherPriority transition actor =
   foldr (\(higher,lower) xs ->
             if label transition == label lower

@@ -42,9 +42,13 @@ newPetrNet ps ts as =
 type Ident = Int
 type Store = Int
 -- data Place = Place Int Int
-type Places = Map Ident Store
+type Places = [Place] -- Map Ident Store
 type PlaceIdx = Int
-data Place = Place Int
+data Place =
+  PlacePort Int
+  | VarInt String Int
+  | VarBool String Bool
+  
 data Transition = Transition Int
   deriving (Eq,Ord,Show)
 -- type Transition = Set Place -> Set Place
@@ -62,6 +66,17 @@ data Arc =
 
 ------------------
 -- actions
+
+runNet :: PetriNet -> PetriNet
+runNet net = go (transitions net)
+  where go ts | Set.null ts = net
+              | otherwise =
+                let t = Set.elemAt 0 ts
+                in if enabled net t
+                   then let (Right x) = fire net t in runNet x
+                   else go (Set.deleteAt 0 ts)
+                
+  
 
 fire :: PetriNet -> Transition -> Either String PetriNet
 fire net t =
@@ -105,13 +120,13 @@ isSource net t = Set.null (incoming net t)
 isSink :: PetriNet -> Transition -> Bool
 isSink net t = Set.null (outgoing net t)
 
-isSelfLoop :: PetriNet -> Place -> Transition -> Bool
-isSelfLoop net (Place p) (Transition t) =
-  let arcs' = Set.filter (
+-- isSelfLoop :: PetriNet -> Place -> Transition -> Bool
+-- isSelfLoop net (Place p) (Transition t) =
+--   let arcs' = Set.filter (
 
-placeToPlace :: PetriNet -> (Place,Place)
-placeToPlace net =
-  let transitionIds = T.map (\(Transition t) -> t) (transitions net)
+-- placeToPlace :: PetriNet -> (Place,Place)
+-- placeToPlace net =
+--   let transitionIds = T.map (\(Transition t) -> t) (transitions net)
   
         
 ---------------------
