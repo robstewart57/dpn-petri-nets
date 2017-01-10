@@ -21,10 +21,8 @@ data PetriNet =
 instance Show PetriNet where
   show (PetriNet ps ts as) =
     unlines
-    [ "PLACES\n-----"
-    , unlines (map
-    (\(ident,store) ->
-       show ident ++ ": " ++ show store) (Map.toList ps))
+    [ "places\n------"
+    , unlines $ map show (Map.toList ps)
     ]
   
 type T = Set Transition
@@ -36,19 +34,66 @@ type W = F -> Set Int
 -- P intersect T = empty set
 -- P union T != empty set
 newPetrNet ps ts as =
-  let places = Map.fromList $ map (\(Place idx,store) -> (idx,store)) ps
-  in PetriNet places (Set.fromList ts) (Set.fromList as)
+--  let places = Map.fromList $ map (\(Place idx,store) -> (idx,store)) ps
+  PetriNet (Map.fromList ps) (Set.fromList ts) (Set.fromList as)
 
 type Ident = Int
 type Store = Int
 -- data Place = Place Int Int
-type Places = [Place] -- Map Ident Store
-type PlaceIdx = Int
-data Place =
-  PlacePort Int
-  | VarInt String Int
-  | VarBool String Bool
+type PlaceIdx = (PlaceType,String)
+type Places = Map PlaceIdx PlaceValue
+data PlaceType =
+  VarInt
+  | VarBool
+  | Port
+  deriving (Eq,Ord,Show)
+
+data PlaceValue =
+  PortVal Int
+  | VarPresent Bool
+
+-- data PlaceIdx =
+--   PlaceVarIntIdx String
+--   | PlaceVarBoolIdx String
+--   | PlacePortIdx String
+--   deriving (Ord,Eq,Show)
   
+-- data Place =
+--   PlacePort String Int
+--   | PlaceVarInt String Int
+--   | PlaceVarBool String Int
+--  | VarBool String Int -- 1 == True, 0 == False
+  -- deriving (Show)
+
+placeValue :: PetriNet -> PlaceIdx -> PlaceValue
+placeValue net idx = fromJust (Map.lookup idx (places net))
+
+changeValue :: PetriNet -> PlaceIdx -> (Int -> Int) -> PetriNet
+changeValue net idx f =
+  net { places = Map.adjust f idx (places net) }
+
+-- placeValue :: PetriNet -> PlaceIdx -> Int
+-- placeValue net (VarInt,name) = goInt (places net)
+--   where
+--     goInt [] = error "unable to find place"
+--     goInt [PlaceVarInt s' i] =
+--       if s == s' then i else error "unable to find place"
+--     goInt (PlaceVarInt s' i:ps) =
+--       if s == s' then i else goInt ps
+
+-- changeValue :: PetriNet -> PlaceIdx -> PetriNet
+-- changeValue net plIdx@(PlaceVarIntIdx idx) =
+--   let ix = Set.findIndex plIdx (places net)
+--       (Pl
+
+  -- go (places net)
+  -- where
+  --   go ps | Set.null ps = error "unable to change value"
+  --         | otherwise =
+  --           let ix = 
+
+
+
 data Transition = Transition Int
   deriving (Eq,Ord,Show)
 -- type Transition = Set Place -> Set Place
@@ -86,17 +131,19 @@ fire net t =
     -- remove from incoming places
     let incomingArcs = incoming net t
         (net'::PetriNet) =
-          Set.foldr (\(ArcPT inPIdx _ w) (PetriNet pl tr as) ->
-                       let newPlaces = Map.adjust (\x ->x-w) inPIdx pl
-                       in PetriNet newPlaces tr as
+          Set.foldr (\(ArcPT inPIdx _ w) n@(PetriNet pl tr as) ->
+                       -- let newPlaces = Map.adjust (\x ->x-w) inPIdx pl
+                       -- in PetriNet newPlaces tr as
+                       changeValue n inPIdx (\x ->x-w)
                        ) net incomingArcs
 
     -- add to outgoing places
         outgoingArcs = outgoing net' t
         (net''::PetriNet)=
-          Set.foldr (\(ArcTP outPIdx _ w) (PetriNet pl tr as) ->
-                       let newPlaces = Map.adjust (\x ->x+w) outPIdx pl
-                       in PetriNet newPlaces tr as
+          Set.foldr (\(ArcTP outPIdx _ w) n@(PetriNet pl tr as) ->
+                       -- let newPlaces = Map.adjust (\x ->x+w) outPIdx pl
+                       -- in PetriNet newPlaces tr as
+                       changeValue n outPIdx (\x ->x+w)
                        ) net' outgoingArcs
     in Right net''
 
@@ -110,9 +157,10 @@ enabled net t =
 
 arcEnabled :: PetriNet -> Arc -> Bool
 arcEnabled net (ArcPT placeIdx _ w) =
-  (fromMaybe
-  (error "arc does not exist")
-  (Map.lookup placeIdx (places net))) >= w
+  -- (fromMaybe
+  -- (error "arc does not exist")
+  -- (Map.lookup placeIdx (places net))) >= w
+  (placeValue net placeIdx) >= w
 
 isSource :: PetriNet -> Transition -> Bool
 isSource net t = Set.null (incoming net t)
