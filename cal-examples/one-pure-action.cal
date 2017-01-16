@@ -1,0 +1,9 @@
+actor OnePureAction () bool in1 ==> bool out1 :
+
+act1: action in1:[x] ==> out1:[x+1] end
+
+schedule fsm s0 :
+ s0 (act1) --> s0;
+end
+
+end

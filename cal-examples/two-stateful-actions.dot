@@ -1,0 +1,18 @@
+digraph {
+  s0
+  s1
+  act1 [shape=box,xlabel="[not st#bl]"]
+  act2 [shape=box,xlabel="[not st#bl]"]
+  In1 [style=dashed]
+  In2 [style=dashed]
+  Out1 [style=dashed]
+  Out2 [style=dashed]
+  s0->act1 [label=" st"]
+  act1->s1 [label="st#bl = not st#bl"]
+  act1->Out1 [label="x+1"]
+  s1->act2 [label=" st"]
+  act2->s0 [label=" st#bl = not st#bl"]
+  act2->Out2 [label="x-2"]
+  In1->act1 [label="x"]
+  In2->act2 [label="x"]
+}

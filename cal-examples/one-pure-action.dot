@@ -1,0 +1,10 @@
+digraph {
+  s0
+  act1 [shape=box]
+  In1 [style=dashed]
+  Out1 [style=dashed]
+  s0->act1 [label=" st"]
+  act1->s0 [label=" st"]
+  act1->Out1 [label="x+1"]
+  In1->act1 [label="x"]
+}
