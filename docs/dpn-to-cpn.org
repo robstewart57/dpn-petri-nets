@@ -1,0 +1,229 @@
+#+TITLE: Dataflow Process Network Actors to Coloured Petri Nets
+#+LATEX_HEADER: \usepackage{booktabs}
+#+LATEX_HEADER: \usepackage[top=0.75in, bottom=0.75in, left=1.5in, right=0.75in]{geometry}
+#+OPTIONS: toc:nil
+
+* Motivation
+
+The ongoing dataflow transformations paper describes why deterministic
+actors are easier to transform than potentially non-determinstic
+actors. This is repeated here in Table
+\ref{tab:dpn-non-determinism-analysis}, from the CAL standard library
+of over a thousand actors. So whilst it is good to parallelise
+stateless actors, to increase coverage of transformations, actors with
+internal non-trivial scheduling inside should also be considered.
+Scheduling of firing rules inside actors is governed by a FSM.
+
+#+BEGIN_EXPORT latex
+\begin{table}[tb]
+  \begin{center}
+\footnotesize
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    Property & Frequency \\
+    \midrule
+    Testing the value of inputs with \emph{guard} & 56\% of actions \\
+    Testing the value of shared variables with \emph{guard}& 56\% of actions \\
+    Branching with \emph{if} and \emph{while} inside actions & 44\% of actions \\
+    Multiple actions consuming from 1 input port & 49\% of input ports \\
+    Multiple actions producing to 1 output port & 41\% of output ports \\
+    Multiple actions mutating shared variables & 62\% of global vars \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \caption{Non-Determinism in Real World DPN Code}
+  \label{tab:dpn-non-determinism-analysis}
+\normalsize
+\end{table}
+#+END_EXPORT
+
+Coloured Petri Nets (CPN) \cite{DBLP:books/daglib/0023756} offer
+analysis approaches and definitions for concurrent systems. I think
+that CPN reasoning can be used to analysis FSMs within DPN actors. We
+can borrow the CPN terminology in the transformations paper, and
+potentially we can implement the CPN analysis and transformation
+techniques within DPN actors, to enable DPN transformations.
+
+#+ATTR_LATEX: :width 10cm
+#+CAPTION: CPN example from \cite{DBLP:books/daglib/0023756}
+#+LABEL: cpn-example
+[[./images/cpn-book-example.png]]
+
+An example of a simple CPN is in Table [[cpn-example]]. It shows 3 places:
+/Data Received, B/ and /C/. The colour type for place /B/ is the type
+product of ~NO~, which is a number type, and ~DATA~, which in this
+example is a String. A CPN marking is the state of a DPN, with data
+tokens sitting at places, at which point enabled transitions are
+known. In marking $M_0$, there are 2 tokens at /B/: /(1,"COL")/ and
+/(2,"OUR")/. Two transitions are enabled: /Discard Packet/ and
+/Receive Next/. They are guarded on the ~NO~ number value, ~n<>k~ and
+~n=k~ respectively.
+
+
+* Notation
+
+A CPN is a tuple $N = (P, T, A, \Sigma, C, N, E, G, I )$ where:
+
+- $P$ is a set of places.
+  - *DPN mapping* I propose two place kinds: input/output port places,
+    and FSM states. FSM places are used to pass around the set of
+    global state variables.
+- $T$ is a set of transitions.
+  - *DPN mapping* transitions are CAL actions.
+- $A$ is a set of arcs.
+  - *DPN mapping* arcs pass tokens between /port/ places and
+    transitions, and pass the set of global actor variables between
+    /FSM/ places and transitions.
+- $\Sigma$ is a set of color sets.
+  - *DPN mapping* this is a product of the set of global variable
+    types and the set of input port types.
+- $C$ is a color function. It maps places in $P$ into colours in
+  $\Sigma$.
+  - *DPN mapping* assigns types to places according to the input ports
+    they consume from, and if the global variable set is non-empty,
+    then the set of global variable types also.
+- $N$ is a node function. It maps $A$ into $(P \times T) \cup (T
+  \times P)$.
+  - *DPN mapping* connects all $t \in T$ to their input port and input
+    FSM places.
+- $E$ is an arc expression function. It maps each arc $a \in A$ into
+  the expression $e$.
+  - *DPN mapping* for arcs to output port places, the computation
+    applied to the transition's inputs. for arcs to FSM places, a list
+    of modifications to the set of global actor variables.
+- $G$ is a guard function. It maps each transition $t \in T$ to a
+  guard expression $g$.
+  - *DPN mapping* are guards attached to actions.
+- $I$ is an initialization function. It maps each place $p$ into an
+  initialization expression $i$.
+
+* CAL Actors to CPNs
+
+The two examples below shows the translation from DPN to CPN using the
+proposed scheme. Here's a software prototype that parses a CAL actor
+file, and outputs a visual CPN showing its scheduling.
+
+https://github.com/robstewart57/dpn-petri-nets
+
+** One action and no global variables
+
+Here is an example of a CAL actor with one action (transition) and no
+global state:
+
+#+BEGIN_EXAMPLE
+actor OnePureAction () bool in1 ==> bool out1 :
+  act1: action in1:[x] ==> out1:[x+1] end
+  schedule fsm s0 :
+    s0 (act1) --> s0;
+  end
+end
+#+END_EXAMPLE
+
+The tool turns that actor into the CPN below. It has 2 /port/ places,
+one /FSM/ place, one transition corresponding to the action /act1/.
+The set of global variables is the empty set, passes back and forth
+to the /s0/ FSM place and the /act1/ transition.
+
+#+ATTR_LATEX: :width 6cm
+#+CAPTION: One action transitions and no global variables
+[[./images/one-action.png]]
+
+** Two actions and one global variable
+
+This actor has a global variable set of $\{bl\}$, where $bl$ is a
+global variable of type ~bool~. The FSM enforces a firing schedule
+alternating transitions ~act1~ and ~act2~.
+
+#+BEGIN_EXAMPLE
+actor TwoStatefulActions () int(size=8) in1, int(size=8) in2
+                            ==> int(size=8) out1, int(size=8) out2 :
+  bool bl := false;
+  act1: action in1:[x] ==> out1:[x+1]
+    guard (not bl)
+    do bl := not bl;
+  end
+  act2: action in2:[x] ==> out2:[x-2]
+    guard bl
+    do bl := not bl; end
+  schedule fsm s0 :
+    s0 (act1) --> s1;
+    s1 (act2) --> s0;
+  end
+end
+#+END_EXAMPLE
+
+The tool turns that actor into the CPN below. It has 2 /FSM/ places
+and 4 /port/ places. The two transitions /act1/ and /act2/ are guarded
+on the value of the global variable ~bl~, carried inwards from /FSM/
+places as ~st~. In this case, this scheduling is anyway enforced by
+the explicit FSM in the CAL code. The arcs from transitions to /FSM/
+places are annotated with statements from within those transition
+computations that modify the values of global variables, in this case
+~bl~.
+
+#+ATTR_LATEX: :width 11cm
+#+CAPTION: Two action transitions and one global variable
+[[./images/two-actions.png]]
+
+* CPN terminology
+
+Here is some terminology to categorise CPNs, and how we may wish to
+classify scheduling in CAL actors:
+
+- An /occurrence sequence/ is the intermediate markings reached from
+  initial marking $M_0$ and $M_n$ after $n$ steps.
+- A marking is /reachable/ if there is an occurrence sequence to it
+  from the initial marking $M_0$.
+- A /dead/ marking is one where there are no enabled transitions.
+- A /double-headed/ arc is short hand for the situation where there
+  are two oppositely directed arcs between a place and a transition
+  sharing the same arc expression.
+- A transition without an input place is a /source transition/, i.e. a
+  CAL action that does not consume from input ports and its actor has
+  no global variables.
+- A transition without an output place is a /sink transition/.
+- A pair of a place $p$ and a transition $t$ is called a /self-loop/
+  is $p$ is both an input and an output place of $t$. This is true for
+  actors with only a single action, where that transitions repeatedly
+  returns to $s0$.
+- An /infinite capacity/ CPN is one with no limit on the number of
+  data tokens in places, in our case /port/ places. A /finite
+  capacity/ CPN is one with capacities attached to port places. This
+  is our model --- we must specific FIFO depths in DPN graphs.
+- A CPN with places with exactly one incoming and one outgoing arc is
+  called a /marked graph/.
+
+* CPN analysis
+
+The motivation for mapping DPN actors to CPNs is to identify which DPN
+actors can be transformed.
+
+- A CPN is /deterministic/ iff:
+  1. only one transition is enabled at each marking.
+  2. each transition has one binding.
+  3. there is only one possible occurrence sequence $M_0$, $M_1$ ..
+     $M_n$. For our transformations, we assume actors always
+     eventually become fireable, /i.e./ is discount any CPNs with the
+     possibility of reaching /dead/ markings, meaning that
+     determinstic CPNs are ones with an occurrence sequence from $M_0$
+     back to $M_0$.
+
+
+Non-deterministic CPNs introduce issues of concurrency and conflict,
+and preliminary analysis of CAL actor code shows us that the majority
+of actor in the CAL standard library can be translated to
+non-deterministic CPNs.
+
+Our treatment of CPNs for DPN analysis differs from CPN literature in
+one important way. CPN can be used for potential identifying multiple
+transitions that can fire in the same step from marking $M_n$ to
+$M_{n+1}$. The semantics of DPN actor enforces sequentiality, i.e.
+only one action can fire, and until the control flow exits the body of
+that action, all other actions are disabled. In the DPN model,
+parallelism comes from connecting multiple actors together (the "wire"
+being the one parallelism construct in the language), no parallelism
+occurs inside actors.
+
+\bibliographystyle{plain}
+\bibliography{dpn-to-cpn}
+
