@@ -2,18 +2,24 @@
 # For more information, see: http://docs.haskellstack.org/en/stable/yaml_configuration.html
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-7.14
+resolver: lts-7.15
 
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+# - location:
+#     git: https://github.com/robstewart57/cal-src.git
+#     commit: d6600cc4db38c1bda172342aeb6ea2fd1b3bd613
+- location: /home/rob/code/haskell/cal-src
 - location:
-    git: https://github.com/robstewart57/cal-src.git
-    commit: 8262849eaca72ee1881063295a877211c5d3da9e
-    
+   git: https://github.com/BNFC/bnfc.git
+   commit: 6160fe65516fa3af8dde1139c504653d45aba272
+  subdirs:
+  - source
+     
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- BNFC-2.8.1
+- BNFC-2.8
 
 # Override default flag values for local packages and extra-deps
 flags: {}
