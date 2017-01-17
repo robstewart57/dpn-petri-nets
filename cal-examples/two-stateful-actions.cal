@@ -1,4 +1,4 @@
-actor TwoStatefulActions () int(size=8) in1 ==> int(size=8) out1 :
+actor TwoStatefulActions () int(size=8) in1, int(size=8) in2 ==> int(size=8) out1, int(size=8) out2 :
 
 bool bl := false;
 
@@ -6,12 +6,13 @@ act1: action in1:[x] ==> out1:[x+1]
 guard (not bl)
 do bl := not bl; end
 
-act2: action in1:[x] ==> out1:[x-2]
+act2: action in2:[x] ==> out2:[x-2]
 guard bl
 do bl := not bl; end
 
 schedule fsm s0 :
- s0 (act1) --> s0;
+ s0 (act1) --> s1;
+ s1 (act2) --> s0;
 end
 
 end
