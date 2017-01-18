@@ -1,0 +1,18 @@
+actor MaxPixel () uint(size=8) in1 ==> uint(size=8) out1 :
+  uint(size=8) max := 0;
+  int(size=32) pixelsCounted := 0;
+
+  fold: action in1:[x] ==>
+  guard (pixelsCounts < 512 * 512)
+  do max := if x > max then x else max end; pixelsCounted := 0; end
+
+  reset: action ==> out1:[max]
+  do pixelsCounted := 0; end
+
+  schedule fsm s0 :
+    s0 (fold)  --> s0;
+    s0 (fold)  --> s1;
+    s1 (reset) --> s0;
+  end
+  
+end
