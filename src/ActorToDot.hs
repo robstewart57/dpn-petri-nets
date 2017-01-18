@@ -88,10 +88,10 @@ fsmTransitions (ActrNoPkg _ _ _ _ globVars blocks (SchedfsmFSM initState trans) 
           globalAssignStmts [s@(SemiColonSeparatedStmt (AssignStt st))]
             | isGlobalAssign st = [s]
             | otherwise = []
-          -- globalAssignStmts [_] = []
-          -- globalAssignStmts (SemiColonSeparatedStmt st@AssignStt{}:xs) =
-          --   st : globalAssignStmts xs
-          -- globalAssignStmts (_:xs) = globalAssignStmts xs
+          globalAssignStmts [_] = []
+          globalAssignStmts (s@(SemiColonSeparatedStmt st@AssignStt{}):xs) =
+            s : globalAssignStmts xs
+          globalAssignStmts (_:xs) = globalAssignStmts xs
 
           isGlobalAssign (AssStmt (Ident ident) _) = elem ident globalMutableVars
           isGlobalAssign (AssStmtIdx (Ident ident) idx _) = elem ident globalMutableVars
